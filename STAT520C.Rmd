@@ -1,0 +1,269 @@
+---
+title: "Untitled"
+author: "Jintong YAN"
+date: "2023-04-17"
+output: pdf_document
+---
+```{r setup, include=FALSE}
+library(survminer)
+library(coda)
+library(dplyr)
+library(tidyverse)
+library(edgeR)
+library("readxl")
+library(ggplot2)
+library(HDInterval)
+library(ggpubr)
+library(JM)
+library("lattice")
+theme_set(
+  cowplot::theme_cowplot() + 
+    theme(
+      strip.background = element_blank(), 
+      strip.text = element_text(size = 8),
+      legend.position = 'bottom'
+    )
+)
+knitr::opts_chunk$set(echo = T, fig.height = 5, fig.width = 7, dpi = 300, dev = 'svglite')
+```
+
+# An Example Based on Poisson distribution with a Gamma prior
+
+In this model, the parameter of interest is the rate parameter of a Poisson distribution. The prior distribution is a Gamma distribution with parameters $\alpha$ and $\beta$, and the likelihood function is a Poisson distribution with parameter $\lambda$. The posterior distribution is also a Gamma distribution with updated parameters  $\alpha'$ and $\beta'$ that depend on the sum of the observed counts.
+
+In this example, first, we generate 10 observations from the distribution with a known parameter $\lambda=5$.
+
+```{r}
+n <- 5
+lambda_true <- 2.2
+set.seed(123) 
+y <- rpois(n, lambda_true)
+y
+```
+
+Then, we forget the true value and try to use the prior we choose and the data we have(y) to get estimate the posterior distribution of the parameter from this data. 
+
+```{r}
+### prior distribution: Gamma(1, 1)
+alpha <- 1
+beta <- 1
+lambda <- seq(0, 10, by = 0.01) # set up grid for plotting
+### prior distribution plot
+plot(lambda, dgamma(lambda, alpha, beta), type = 'l', lwd = 2, col = 'orange',
+     ylim = c(0, 3.2), xlab = expression(lambda), 
+     ylab = expression(paste('p(', lambda, '|y)')))
+### posterior distribution plot
+lines(lambda, dgamma(lambda, alpha + sum(y), beta + n), 
+      type = 'l', lwd = 2, col = 'violet')
+abline(v = lambda_true, lty = 2)
+legend('topright', inset = .02, legend = c('prior', 'posterior'),
+       col = c('orange', 'violet'), lwd = 2)
+```
+
+## Equal-tailed interval
+### prior distribution: Gamma(1, 1)
+95% confidence interval for the parameter $\lambda$
+```{r}
+alpha <- 1 
+beta <- 1
+conf <- 0.05
+pdf("/Users/yanjintong/2023/STAT520C/gamma1-1.pdf", width=8, height=8)
+plot(lambda, dgamma(lambda, alpha, beta), type = 'l', lwd = 2, col = 'orange')
+lambda <- seq(0, 15, by = 0.001) # set up grid for plotting
+```
+
+n = 2
+
+```{r}
+n <- 2
+set.seed(123) 
+y <- rpois(n, lambda_true)
+# posterior distribution for the parameter lambda
+alpha_1 <- sum(y) + alpha
+beta_1 <- n + beta
+q_lower_1 <- qgamma(conf / 2, alpha_1, beta_1)
+q_upper_1 <- qgamma(1 - conf / 2, alpha_1, beta_1)
+c(q_lower_1, q_upper_1)
+```
+
+n = 10
+
+```{r}
+n <- 5
+set.seed(123) 
+y <- rpois(n, lambda_true)
+# posterior distribution for the parameter lambda
+alpha_2 <- sum(y) + alpha
+beta_2 <- n + beta
+q_lower_2 <- qgamma(conf / 2, alpha_2, beta_2)
+q_upper_2 <- qgamma(1 - conf / 2, alpha_2, beta_2)
+c(q_lower_2, q_upper_2)
+```
+
+n = 15
+
+```{r}
+n <- 15
+set.seed(123) 
+y <- rpois(n, lambda_true)
+# posterior distribution for the parameter lambda
+alpha_3 <- sum(y) + alpha
+beta_3 <- n + beta
+q_lower_3 <- qgamma(conf / 2, alpha_3, beta_3)
+q_upper_3 <- qgamma(1 - conf / 2, alpha_3, beta_3)
+c(q_lower_3, q_upper_3)
+```
+
+n = 75
+
+```{r}
+n <- 75
+set.seed(123) 
+y <- rpois(n, lambda_true)
+# posterior distribution for the parameter lambda
+alpha_4 <- sum(y) + alpha
+beta_4 <- n + beta
+q_lower_4 <- qgamma(conf / 2, alpha_4, beta_4)
+q_upper_4 <- qgamma(1 - conf / 2, alpha_4, beta_4)
+c(q_lower_4, q_upper_4)
+```
+
+Put them in one plot
+
+```{r}
+plot_CI <- function(alpha, beta, conf, lambda_true, n) {
+    plot(lambda, dgamma(lambda, alpha, beta), type = 'l', lwd = 2, col = 'violet',
+       ylim = c(0, 2), xlim = c(0, 10), xlab = expression(lambda),
+    ylab = expression(paste('p(', lambda, '|y)')))
+    q_lower <- qgamma(conf / 2, alpha, beta)
+    q_upper <- qgamma(1 - conf / 2, alpha, beta)
+    y_val <- dgamma(lambda, alpha, beta)
+    x_coord <- c(q_lower, lambda[lambda >= q_lower & lambda <= q_upper], q_upper)
+    y_coord <- c(0, y_val[lambda >= q_lower & lambda <= q_upper], 0)
+    polygon(x_coord, y_coord, col = 'pink', lwd = 2,  border = 'violet')
+    lines(lambda, dgamma(lambda, alpha, beta),
+        type = 'l', lwd = 2, col = 'orange')
+    abline(v = lambda_true, lty = 2)
+    text(x = 0.5, y = 1.5, paste0('n=', n), cex = 1.75)
+}
+pdf("/Users/yanjintong/2023/STAT520C/ETI_1.pdf", width=8, height=8)
+par(mfrow = c(2,2), mar = c(2, 2, .1, .1))
+plot_CI(alpha_1, beta_1, conf = 0.05, lambda_true, n=2)
+plot_CI(alpha_2, beta_2, conf = 0.05, lambda_true, n=5)
+plot_CI(alpha_3, beta_3, conf = 0.05, lambda_true, n=15)
+plot_CI(alpha_4, beta_4, conf = 0.05, lambda_true, n=75)
+```
+
+### prior distribution: Gamma(8, 1)
+compute 95% confidence interval for the parameter $\lambda$
+```{r}
+# Prior distribution 
+alpha <- 8
+beta <- 1
+pdf("/Users/yanjintong/2023/STAT520C/gamma8-1.pdf", width=8, height=8)
+plot(lambda, dgamma(lambda, alpha, beta), type = 'l', lwd = 2, col = 'orange')
+```
+
+```{r}
+# posterior distribution
+n <- 2
+set.seed(123) 
+y <- rpois(n, lambda_true)
+# posterior distribution for the parameter lambda
+alpha_1 <- sum(y) + alpha
+beta_1 <- n + beta
+q_lower <- qgamma(conf / 2, alpha_1, beta_1)
+q_upper <- qgamma(1 - conf / 2, alpha_1, beta_1)
+c(q_lower, q_upper)
+n <- 5
+set.seed(123) 
+y <- rpois(n, lambda_true)
+# posterior distribution for the parameter lambda
+alpha_2 <- sum(y) + alpha
+beta_2 <- n + beta
+q_lower <- qgamma(conf / 2, alpha_2, beta_2)
+q_upper <- qgamma(1 - conf / 2, alpha_2, beta_2)
+c(q_lower, q_upper)
+n <- 15
+set.seed(123) 
+y <- rpois(n, lambda_true)
+# posterior distribution for the parameter lambda
+alpha_3 <- sum(y) + alpha
+beta_3 <- n + beta
+q_lower <- qgamma(conf / 2, alpha_3, beta_3)
+q_upper <- qgamma(1 - conf / 2, alpha_3, beta_3)
+c(q_lower, q_upper)
+n <- 75
+set.seed(123) 
+y <- rpois(n, lambda_true)
+# posterior distribution for the parameter lambda
+alpha_4 <- sum(y) + alpha
+beta_4 <- n + beta
+q_lower <- qgamma(conf / 2, alpha_4, beta_4)
+q_upper <- qgamma(1 - conf / 2, alpha_4, beta_4)
+c(q_lower, q_upper)
+
+pdf("/Users/yanjintong/2023/STAT520C/ETI_2.pdf", width=8, height=8)
+par(mfrow = c(2, 2), mar = c(2, 2, .1, .1))
+plot_CI(alpha_1, beta_1, conf = 0.05, lambda_true, n=2)
+plot_CI(alpha_2, beta_2, conf = 0.05, lambda_true, n=5)
+plot_CI(alpha_3, beta_3, conf = 0.05, lambda_true, n=15)
+plot_CI(alpha_4, beta_4, conf = 0.05, lambda_true, n=75)
+```
+
+## HPD interval
+### prior distribution: Gamma(1, 1)
+95% confidence interval for the parameter $\lambda$
+
+```{r}
+plot_HPDCI <- function(y, lambda, alpha, beta, conf, lambda_true, n) {
+    y <- rpois(n, lambda_true)
+    posterior <- dgamma(lambda, alpha, beta) * 
+    sapply(lambda, function(lambda){prod(dpois(y, lambda))})
+    posterior <- posterior / sum(posterior)
+    dens <- density(lambda, weights = posterior)
+    hpd_region <- hdi(dens, prob = 0.95, allowSplit = TRUE)
+    lower <- hpd_region[1, 1]
+    upper <- hpd_region[1, 2]
+    c(lower, upper)
+
+    plot(lambda, dgamma(lambda, alpha + sum(y), beta + n), 
+    type = 'l', lwd = 2, col = 'violet',
+    ylim = c(0, 2), xlim = c(0, 10), xlab = expression(lambda),
+    ylab = expression(paste('p(', lambda, '|y)')))
+    y_post <- dgamma(lambda, alpha + sum(y), beta + n)
+    x_coord <- c(lower, lambda[lambda >= lower & lambda <= upper], upper)
+    y_coord <- c(0, y_post[lambda >= lower & lambda <= upper], 0)
+    polygon(x_coord, y_coord, col = 'pink', lwd = 2,  border = 'violet')
+    abline(v = lambda_true, lty = 2)
+    text(x = 7, y = 1.5, paste0('n=', n), cex = 1.75)
+}
+```
+
+```{r}
+set.seed(123)
+alpha <- 1
+beta <- 1
+lambda_vals <- seq(0, 15, by = 0.001) 
+pdf("/Users/yanjintong/2023/STAT520C/HPD_1.pdf", width=8, height=8)
+par(mfrow = c(2, 2), mar = c(2, 2, .1, .1))
+plot_HPDCI(y, lambda_vals, alpha, beta, 0.05, lambda_true, 2)
+plot_HPDCI(y, lambda_vals, alpha, beta, 0.05, lambda_true, 5)
+plot_HPDCI(y, lambda_vals, alpha, beta, 0.05, lambda_true, 15)
+plot_HPDCI(y, lambda_vals, alpha, beta, 0.05, lambda_true, 75)
+```
+
+### prior distribution: Gamma(8, 1)
+95% confidence interval for the parameter $\lambda$
+```{r}
+set.seed(123)
+alpha <- 8
+beta <- 1
+lambda_vals <- seq(0, 15, by = 0.001) 
+pdf("/Users/yanjintong/2023/STAT520C/HPD_2.pdf", width=8, height=8)
+par(mfrow = c(2, 2), mar = c(2, 2, .1, .1))
+plot_HPDCI(y, lambda_vals, alpha, beta, 0.05, lambda_true, 2)
+plot_HPDCI(y, lambda_vals, alpha, beta, 0.05, lambda_true, 5)
+plot_HPDCI(y, lambda_vals, alpha, beta, 0.05, lambda_true, 15)
+plot_HPDCI(y, lambda_vals, alpha, beta, 0.05, lambda_true, 75)
+```
